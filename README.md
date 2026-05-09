@@ -4,8 +4,8 @@ A from-scratch implementation of a feedforward and convolutional neural network 
  
 > This project builds on base-model MNIST classifiers in 2 main ways:
 >
-> 1. **No autograd.** Every gradient, including through softmax + cross-entropy, dropout masks, and the convolution layer, is derived analytically and written out explicitly.
-> 2. **im2col convolution.** The conv layer's forward and backward pass are vectorised via `im2col` / `col2im`, turning the four nested loops of a naive convolution into a single matrix multiplication. This is the same trick Caffe and early cuDNN used.
+> 1. **No autograd:** Every gradient, including through softmax + cross-entropy, dropout masks, and the convolution layer, is derived analytically and written out explicitly in code.
+> 2. **im2col convolution:** The conv layer's forward and backward pass are vectorised via `im2col` / `col2im`, turning the four nested loops of a naive convolution into a single matrix multiplication. This is the same trick Caffe and early cuDNN used.
 <img width="1188" height="1239" alt="image" src="https://github.com/user-attachments/assets/3429e4f8-c3c9-4064-a8e4-74ca98889143" />
 
 ## Project structure
