@@ -1,5 +1,5 @@
 import mnist_loader
-from neuralnet2 import Network, ConvolutionalLayer, FullyConnectedLayer, OutputLayer
+from convolutional_neural_net import Network, ConvolutionalLayer, FullyConnectedLayer, OutputLayer
 
 
 training_data, validation_data, evaluation_data = mnist_loader.load_data_wrapper()
