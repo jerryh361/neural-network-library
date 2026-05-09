@@ -79,9 +79,9 @@ python server.py
 ```
 
 ## Design decisions
-- **Conv + pooling combined.** As these two are often used together, it made more sense to bundle them rather than separating. This bundling also leads to cleaner code in designing network architecture.
-- **L2 over L1.** L2 is closed-form differentiable and can be implemented into the weight update quite easily. L1 needs subgradients and gave no measurable accuracy improvement on MNIST.
-- **Dropout only on fully connected layers.** Dropout on convolutional feature maps is counterintuitive, as contiguous activations are correlated. This is opposed to linear connected layers, which can be thought of as independent units.
+- **Conv + pooling combined** As these two are often used together, it made more sense to bundle them rather than separating. This bundling also leads to cleaner code in designing network architecture.
+- **L2 over L1 regularisatin** L2 is closed-form differentiable and can be implemented into the weight update quite easily. L1 needs subgradients and gave no measurable accuracy improvement on MNIST.
+- **Dropout only on fully conected layers** Dropout on convolutional feature maps is counterintuitive, as contiguous activations are correlated. This is opposed to linear connected layers, which can be thought of as independent units.
 
 ## Acknowledgments
 The MNIST data loader (`mnist_loader.py`) is based on the program from Michael Nielsen's
