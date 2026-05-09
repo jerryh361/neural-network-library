@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MNIST Digit Recognizer</title>
+<style>
+  :root {
+    --cell: 18px;
+    --grid: 28;
+    --bg: #f7f7fa;
+    --panel: #ffffff;
+    --fg: #1c1d22;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --accent-soft: #dbeafe;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 32px 24px 64px;
+  }
+  h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 600; }
+  h2 { margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  p.muted { color: var(--muted); margin: 0 0 20px 0; font-size: 13px; }
+
+  .top {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 32px;
+    align-items: start;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(var(--grid), var(--cell));
+    grid-template-rows: repeat(var(--grid), var(--cell));
+    gap: 1px;
+    background: var(--line);
+    padding: 1px;
+    border-radius: 6px;
+    user-select: none;
+    touch-action: none;
+  }
+  .cell {
+    width: var(--cell);
+    height: var(--cell);
+    background: #fff;
+  }
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    background: var(--panel);
+    color: var(--fg);
+    border: 1px solid var(--line);
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  label { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  input[type=range] { width: 110px; }
+
+  .results { min-width: 280px; }
+  .digit-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    align-items: center;
+    margin: 0 0 16px 0;
+  }
+  .digit {
+    font-size: 96px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .digit-bar-wrap {
+    display: grid;
+    gap: 6px;
+  }
+  .digit-bar {
+    background: var(--accent-soft);
+    border-radius: 4px;
+    overflow: hidden;
+    height: 14px;
+  }
+  .digit-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width 120ms ease;
+  }
+  .digit-pct {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .bars { display: grid; gap: 4px; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 18px 1fr 50px;
+    gap: 8px;
+    align-items: center;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+  .bar {
+    background: var(--accent-soft);
+    border-radius: 3px;
+    overflow: hidden;
+    height: 12px;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width 120ms ease;
+  }
+
+  /* Network viz */
+  .viz {
+    max-width: 1100px;
+    margin: 24px auto 0;
+  }
+  .layers {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .layer h3 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .layer .sub { color: var(--muted); font-size: 11px; margin-bottom: 10px; }
+
+  /* Conv feature maps: small grid of mini grids */
+  .feature-maps {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .fmap {
+    aspect-ratio: 1 / 1;
+    image-rendering: pixelated;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    width: 100%;
+    height: auto;
+  }
+
+  /* FC neuron grid */
+  .neurons {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 3px;
+  }
+  .neuron {
+    aspect-ratio: 1 / 1;
+    background: var(--accent-soft);
+    border-radius: 3px;
+  }
+
+  /* Output: 10 labeled cells */
+  .outputs {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .output {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .output .swatch {
+    height: 24px;
+    border-radius: 4px;
+    background: var(--accent-soft);
+  }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="panel">
+    <h1>MNIST Digit Recognizer</h1>
+    <p class="muted">Draw a digit (0–9). Left-click to paint, right-click to erase.</p>
+    <div id="grid" class="grid"></div>
+    <div class="controls">
+      <button id="clear">Clear</button>
+      <label>brush <input type="range" id="brush" min="1" max="3" value="2" /></label>
+    </div>
+  </div>
+
+  <div class="panel results">
+    <h2>Prediction</h2>
+    <div class="digit-row">
+      <div class="digit" id="digit">—</div>
+      <div class="digit-bar-wrap">
+        <div class="digit-bar"><span id="digit-bar-fill" style="width:0%"></span></div>
+        <div class="digit-pct" id="digit-pct">—</div>
+      </div>
+    </div>
+    <div class="bars" id="bars"></div>
+  </div>
+</div>
+
+<div class="viz">
+  <div class="panel">
+    <h2>Network activations</h2>
+    <div class="layers">
+      <div class="layer">
+        <h3>Conv (20 × 12×12)</h3>
+        <div class="sub">feature maps after ReLU + max-pool</div>
+        <div class="feature-maps" id="conv-maps"></div>
+      </div>
+      <div class="layer">
+        <h3>Fully-connected (100)</h3>
+        <div class="sub">hidden ReLU activations</div>
+        <div class="neurons" id="fc-neurons"></div>
+      </div>
+      <div class="layer">
+        <h3>Output (10)</h3>
+        <div class="sub">softmax probability per digit</div>
+        <div class="outputs" id="outputs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SIZE = 28;
+const grid = document.getElementById('grid');
+const cells = [];
+const pixels = Array.from({length: SIZE}, () => Array(SIZE).fill(0));
+
+for (let r = 0; r < SIZE; r++) {
+  for (let c = 0; c < SIZE; c++) {
+    const el = document.createElement('div');
+    el.className = 'cell';
+    el.dataset.r = r;
+    el.dataset.c = c;
+    grid.appendChild(el);
+    cells.push(el);
+  }
+}
+
+function render(r, c) {
+  const v = pixels[r][c];
+  const g = Math.round((1 - v) * 255); // light bg, dark stroke
+  cells[r * SIZE + c].style.background = `rgb(${g},${g},${g})`;
+}
+
+function paintAt(r, c, value) {
+  const radius = parseInt(document.getElementById('brush').value, 10);
+  for (let dr = -radius + 1; dr < radius; dr++) {
+    for (let dc = -radius + 1; dc < radius; dc++) {
+      const rr = r + dr, cc = c + dc;
+      if (rr < 0 || rr >= SIZE || cc < 0 || cc >= SIZE) continue;
+      const dist = Math.hypot(dr, dc);
+      if (dist >= radius) continue;
+      const falloff = 1 - (dist / radius);
+      const target = value * falloff;
+      if (value > 0) {
+        pixels[rr][cc] = Math.min(1, Math.max(pixels[rr][cc], target));
+      } else {
+        pixels[rr][cc] = 0;
+      }
+      render(rr, cc);
+    }
+  }
+}
+
+let dragging = 0; // 0=none, 1=paint, 2=erase
+
+function cellAt(e) {
+  const t = document.elementFromPoint(
+    e.touches ? e.touches[0].clientX : e.clientX,
+    e.touches ? e.touches[0].clientY : e.clientY
+  );
+  if (!t || !t.classList.contains('cell')) return null;
+  return [parseInt(t.dataset.r, 10), parseInt(t.dataset.c, 10)];
+}
+
+grid.addEventListener('contextmenu', e => e.preventDefault());
+grid.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  dragging = e.button === 2 ? 2 : 1;
+  const rc = cellAt(e); if (!rc) return;
+  paintAt(rc[0], rc[1], dragging === 1 ? 1 : 0);
+});
+window.addEventListener('pointerup', () => {
+  if (dragging) { dragging = 0; predict(); }
+});
+grid.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const rc = cellAt(e); if (!rc) return;
+  paintAt(rc[0], rc[1], dragging === 1 ? 1 : 0);
+});
+
+document.getElementById('clear').addEventListener('click', () => {
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++) {
+      pixels[r][c] = 0;
+      render(r, c);
+    }
+  clearDigit();
+  renderBars(new Array(10).fill(0));
+  renderActivations(null);
+});
+
+function renderBars(probs) {
+  const bars = document.getElementById('bars');
+  bars.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <span>${i}</span>
+      <div class="bar"><span style="width:${(probs[i] * 100).toFixed(1)}%"></span></div>
+      <span>${(probs[i] * 100).toFixed(1)}%</span>
+    `;
+    bars.appendChild(row);
+  }
+}
+
+function renderDigit(digit, probs) {
+  document.getElementById('digit').textContent = digit;
+  const pct = probs[digit] * 100;
+  document.getElementById('digit-bar-fill').style.width = pct.toFixed(1) + '%';
+  document.getElementById('digit-pct').textContent = pct.toFixed(1) + '%';
+}
+
+function clearDigit() {
+  document.getElementById('digit').textContent = '—';
+  document.getElementById('digit-bar-fill').style.width = '0%';
+  document.getElementById('digit-pct').textContent = '—';
+}
+
+// --- Network visualization ---
+
+// Conv: render each feature map onto a small canvas
+function renderFeatureMaps(layer) {
+  const container = document.getElementById('conv-maps');
+  const [f, h, w] = layer.shape;
+  // (Re)create canvases lazily
+  if (container.childElementCount !== f) {
+    container.innerHTML = '';
+    for (let i = 0; i < f; i++) {
+      const c = document.createElement('canvas');
+      c.className = 'fmap';
+      c.width = w; c.height = h;
+      container.appendChild(c);
+    }
+  }
+  for (let i = 0; i < f; i++) {
+    const canvas = container.children[i];
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    for (let p = 0; p < w * h; p++) {
+      const v = layer.data[i * w * h + p];
+      // Light scheme: white = 0, blue = 1
+      const r = Math.round(255 - v * (255 - 37));   // 255 -> 37
+      const g = Math.round(255 - v * (255 - 99));   // 255 -> 99
+      const b = Math.round(255 - v * (255 - 235));  // 255 -> 235
+      img.data[p * 4]     = r;
+      img.data[p * 4 + 1] = g;
+      img.data[p * 4 + 2] = b;
+      img.data[p * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+}
+
+function renderNeuronGrid(layer) {
+  const container = document.getElementById('fc-neurons');
+  const n = layer.data.length;
+  if (container.childElementCount !== n) {
+    container.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('div');
+      el.className = 'neuron';
+      container.appendChild(el);
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const v = Math.max(0, Math.min(1, layer.data[i]));
+    // accent blend over accent-soft
+    const r = Math.round(219 - v * (219 - 37));
+    const g = Math.round(234 - v * (234 - 99));
+    const b = Math.round(254 - v * (254 - 235));
+    container.children[i].style.background = `rgb(${r},${g},${b})`;
+  }
+}
+
+function renderOutputs(layer) {
+  const container = document.getElementById('outputs');
+  if (container.childElementCount !== 10) {
+    container.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+      const row = document.createElement('div');
+      row.className = 'output';
+      row.innerHTML = `<span>${i}</span><div class="swatch"></div>`;
+      container.appendChild(row);
+    }
+  }
+  for (let i = 0; i < 10; i++) {
+    const v = Math.max(0, Math.min(1, layer.data[i]));
+    const row = container.children[i];
+    const swatch = row.querySelector('.swatch');
+    const r = Math.round(219 - v * (219 - 37));
+    const g = Math.round(234 - v * (234 - 99));
+    const b = Math.round(254 - v * (254 - 235));
+    swatch.style.background = `rgb(${r},${g},${b})`;
+  }
+}
+
+function renderActivations(activations) {
+  if (!activations) {
+    document.getElementById('conv-maps').innerHTML = '';
+    document.getElementById('fc-neurons').innerHTML = '';
+    document.getElementById('outputs').innerHTML = '';
+    return;
+  }
+  for (const layer of activations) {
+    if (layer.kind === 'feature_maps') renderFeatureMaps(layer);
+    else if (layer.kind === 'output') renderOutputs(layer);
+    else renderNeuronGrid(layer);
+  }
+}
+
+let pending = false;
+async function predict() {
+  if (pending) return;
+  pending = true;
+  try {
+    const res = await fetch('/predict', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pixels}),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderDigit(data.digit, data.probabilities);
+    renderBars(data.probabilities);
+    renderActivations(data.activations);
+  } catch (err) {
+    document.getElementById('digit').textContent = '!';
+    console.error(err);
+  } finally {
+    pending = false;
+  }
+}
+
+renderBars(new Array(10).fill(0));
+// Paint the canvas backgrounds white initially
+for (let r = 0; r < SIZE; r++)
+  for (let c = 0; c < SIZE; c++) render(r, c);
+</script>
+</body>
+</html>
